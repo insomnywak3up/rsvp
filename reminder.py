@@ -10,7 +10,7 @@ scheduler = BackgroundScheduler()
 scheduler.start()
 
 
-
+# 0
 
 # Function to send a reminder
 def send_reminder(chat_id, event_name):

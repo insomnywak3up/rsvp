@@ -101,3 +101,4 @@ if __name__ == "__main__":
         return bot
 
 bot.polling(none_stop=True)
+# 0
