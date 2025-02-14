@@ -1,5 +1,6 @@
 import telebot
-from datetime import datetime
+from datetime import datetime, timedelta
+from google_calendar import create_event, list_events
 from reminder import schedule_reminder  # Import schedule_reminder from reminder.py
 from config import BOT_TOKEN  # Import token from config.py
 from rsvp import handle_rsvp  # Import RSVP handlers
@@ -64,6 +65,7 @@ def set_event_time(message):
         event_date = events_data[chat_id]['date']
         event_time = events_data[chat_id]['time']
         event_start_time = datetime.combine(event_date, event_time)
+        event_end_time = event_start_time + timedelta(hours=1)  # Assuming event duration is 1 hour
 
         # Schedule reminder
         schedule_reminder(chat_id, event_name, event_start_time)
@@ -71,12 +73,29 @@ def set_event_time(message):
         # Generate event ID and store it
         event_id = generate_event_id_and_store(chat_id, events_data)
 
+        # Create event in Google Calendar
+        event_link = create_event(event_name, event_start_time, event_end_time)
+
         bot.send_message(chat_id, f"✅ Event \"{event_name}\" created for {event_date} at {event_time}.\n"
                                   f"🔔 Reminder set 1 hour before the event!\n"
-                                  f"📋 You can now invite participants. Share this event ID with them: {event_id}")
+                                  f"📋 You can now invite participants. Share this event ID with them: {event_id}\n"
+                                  f"📅 View your event in Google Calendar: {event_link}")
     except ValueError:
         bot.send_message(chat_id, "❌ Invalid time format. Please use HH:MM.")
         bot.register_next_step_handler(message, set_event_time)
+
+@bot.message_handler(commands=['myevents'])
+def my_events_command(message):
+    """Handles the myevents command."""
+    events = list_events()
+    if not events:
+        bot.send_message(message.chat.id, "❌ No upcoming events found.")
+    else:
+        message_text = "📅 Upcoming events:\n"
+        for event in events:
+            start = event['start'].get('dateTime', event['start'].get('date'))
+            message_text += f"{start}: {event['summary']}\n"
+        bot.send_message(message.chat.id, message_text)
 
 @bot.message_handler(commands=['invite'])
 def invite_command(message):
