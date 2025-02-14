@@ -1,17 +1,12 @@
-from datetime import timedelta, datetime
-from apscheduler.schedulers.background import BackgroundScheduler
-from telebot import TeleBot
-from config import BOT_TOKEN
+import threading
+import time
+from datetime import datetime
 
-bot = TeleBot(BOT_TOKEN)
-scheduler = BackgroundScheduler()
-scheduler.start()
-
-def send_reminder(chat_id, event_name):
-    bot.send_message(chat_id, f"🔔 Reminder: The event \"{event_name}\" starts in 1 hour!")
-
-def schedule_reminder(chat_id, event_name, event_start_time):
-    reminder_time = event_start_time - timedelta(hours=1)
-    scheduler.add_job(send_reminder, 'date', run_date=reminder_time, args=[chat_id, event_name])
-    print(f"Reminder scheduled for \"{event_name}\" at {reminder_time}.")
-
+def schedule_reminder(chat_id, event_name, event_time, bot):
+    def remind():
+        wait_time = (event_time - datetime.now()).total_seconds() - 3600
+        if wait_time > 0:
+            time.sleep(wait_time)
+            bot.send_message(chat_id, f"⏰ Reminder: '{event_name}' starts in 1 hour!")
+    thread = threading.Thread(target=remind)
+    thread.start()
