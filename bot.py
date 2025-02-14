@@ -4,7 +4,7 @@ from reminder import schedule_reminder  # Import reminders
 from config import BOT_TOKEN  # Bot token
 from rsvp import handle_rsvp  # RSVP handler
 from invite import generate_event_link, generate_event_id_and_store, invite_participants # Invitation functions
-from events import list_events, cancel_event  # Event listing and cancellation
+from events import list_events, cancel_event, edit_event  # Event listing, cancellation, and editing
 
 # Initialize the bot
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -22,6 +22,7 @@ def welcome(message):
         "✔️ View my events (/myevents)\n"
         "✔️ Confirm attendance (/rsvp ID yes/no/maybe)\n"
         "✔️ Cancel an event (/cancel ID)\n"
+        "✔️ Edit an event's date and time (/edit ID)\n"
         "🚀 <em>Start with /createevent!</em>",
         parse_mode='html'
     )
@@ -112,6 +113,61 @@ def cancel_event_command(message):
             bot.send_message(chat_id, "❌ Invalid event ID or you don't have permission to cancel this event.")
     except ValueError:
         bot.send_message(chat_id, "❌ Invalid format. Use /cancel <event_id>.")
+
+@bot.message_handler(commands=['edit'])
+def edit_event_command(message):
+    """Handles the edit command."""
+    chat_id = message.chat.id
+    try:
+        _, event_id = message.text.split()
+        if event_id in events_data['events'] and events_data['events'][event_id]['chat_id'] == chat_id:
+            bot.send_message(chat_id, "📅 Enter the new date of the event (format: YYYY-MM-DD):")
+            bot.register_next_step_handler(message, set_new_event_date, event_id)
+        else:
+            bot.send_message(chat_id, "❌ Invalid event ID or you don't have permission to edit this event.")
+    except ValueError:
+        bot.send_message(chat_id, "❌ Invalid format. Use /edit <event_id>.")
+
+def set_new_event_date(message, event_id):
+    """Saves the new event date."""
+    chat_id = message.chat.id
+    try:
+        date = datetime.strptime(message.text, "%Y-%m-%d").date()
+        events_data['events'][event_id]['date'] = date
+        bot.send_message(chat_id, "⏰ Enter the new time of the event (format: HH:MM):")
+        bot.register_next_step_handler(message, set_new_event_time, event_id)
+    except ValueError:
+        bot.send_message(chat_id, "❌ Invalid date format. Use YYYY-MM-DD.")
+        bot.register_next_step_handler(message, set_new_event_date, event_id)
+
+def set_new_event_time(message, event_id):
+    """Saves the new event time and updates the event."""
+    chat_id = message.chat.id
+    try:
+        time = datetime.strptime(message.text, "%H:%M").time()
+        events_data['events'][event_id]['time'] = time
+
+        event = events_data['events'][event_id]
+        event_name = event['name']
+        event_date = event['date']
+        event_time = event['time']
+        event_start_time = datetime.combine(event_date, event_time)
+
+        # Generate new event link
+        event_link = generate_event_link(event_name, event_start_time)
+
+        # Update reminder
+        schedule_reminder(chat_id, event_name, event_start_time, bot)
+
+        # Send updated information to the user
+        bot.send_message(chat_id, f"✅ Event \"{event_name}\" updated!\n"
+                                  f"📆 New date: {event_date} at {event_time}\n"
+                                  f"🔔 Reminder updated!\n"
+                                  f"🌍 <a href='{event_link}'>View in Google Calendar</a>",
+                         parse_mode="HTML")
+    except ValueError:
+        bot.send_message(chat_id, "❌ Invalid time format. Use HH:MM.")
+        bot.register_next_step_handler(message, set_new_event_time, event_id)
 
 @bot.message_handler(commands=['invite'])
 def invite_command(message):
