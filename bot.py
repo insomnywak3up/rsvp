@@ -185,7 +185,7 @@ class RSVPBot:
         handle_rsvp(self.bot, message, self.events_data)
 
     def run(self):
-        print("Bot is running...")
+        print("Bot is runningg...")
         self.bot.infinity_polling()
 
 def get_bot():
