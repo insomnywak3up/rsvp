@@ -1,4 +1,5 @@
 import telebot
+from telebot import types
 from datetime import datetime
 from reminder import schedule_reminder  # Import reminders
 from config import BOT_TOKEN  # Bot token
